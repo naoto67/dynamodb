@@ -18,14 +18,14 @@
  | ----- | ----- | ----- |
  | GetItem | 主キーで1項目取得 | |
  | BatchGetItem | 1つ以上のテーブルから指定したキーの項目を取得 | 1度に100項目まで取得可能 |
- | Query | 指定したパーティションキーの項目全て取得。ソートキーに対しての条件で検索も可能 | 使い方によっては、BatchGetItemよりRCUを節約できるかも |
+ | Query | 指定したパーティションキーの項目全て取得。<br>ソートキーに対しての条件で検索も可能 | 使い方によっては、BatchGetItemよりRCUを節約できるかも |
  | Scan | 全ての項目を取得 | |
 
  書き込み
  | Operation | 概要 | その他 |
  | ----- | ----- | ----- |
  | PutItem | 項目の作成 | |
- | BatchWriteItem | 1つのテーブルに複数項目を一度に作成 | 1度に25項目まで取得可能、BatchGetItemと違い1テーブル、削除も可能 |
+ | BatchWriteItem | 1つのテーブルに複数項目を一度に作成 | 1度に25項目まで取得可能<br>BatchGetItemと違い1テーブル<br>削除も可能 |
  | UpdateItem | 主キーを指定して、Attributeを修正 | |
  | DeleteItem | 主キーで項目削除 | |
 
@@ -35,6 +35,7 @@
 
 ```
 DYNAMODB_ENDPOINT_URL=http://localhost:18080
+docker-compose up -d
 
 aws dynamodb --endpoint-url=${DYNAMODB_ENDOPOINT_URL} create-table \
   --table-name Music \
