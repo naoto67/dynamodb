@@ -7,6 +7,7 @@
  - attirubtes   属性。主キー・インデックス以外はスキーマレス
 
 テーブルに必要な概念
+
  - PrimaryKey（HASH, RANGE）
  - CapacityUnit
  - インデックス（GSI, LSI）
@@ -14,15 +15,15 @@
 ### PrimaryKey
 
  DynamoDBはプライマリーキーは必須。
- プライマリキーはテーブルの各項目を一意に識別するため、テーブル内の 2 つの項目が同じキーを持つことはありません。
- プライマリーキーは、2種類のインデックスをサポートします。
+ プライマリキーはテーブルの各項目を一意に識別するため、テーブル内の 2 つの項目が同じキーを持つことはない。
+ プライマリーキーは、以下の2種類をサポート。
 
- 1. パーティションキー（HASHキー）
+#### 1. パーティションキー（HASHキー）
 
   DynamoDBは、パーティションキーの値を内部ハッシュ関数を使用し、保存する物理ストレージを決定。
   パーティションキーの値は、一意。
 
- 2. パーティションキーとソートキーの複合キー（HASH+RANGEキー）
+#### 2. パーティションキーとソートキーの複合キー（HASH+RANGEキー）
 
   単一パーティションキーの場合と同様、パーティションキーによって、保存先を決定。
   すべての項目は、パーティションキーの値毎に、ソートキーの値でソートされた順序によって保存される。
@@ -36,11 +37,11 @@
  DynamoDBは、テーブルごとにCapacityUnitの設定が必要。PrimaryKey用のCapacityUnit、GSIがある場合は、そのGSIに対しても設定が必要。
  CapacityUnitは、ReadCapacityUnitsとWriteCapacityUnitsがある。
 
- 1. ReadCapacityUnits（読み込みキャパシティーユニット）
+#### 1. ReadCapacityUnits（読み込みキャパシティーユニット）
 
   1RCUは、最大4KBの項目について、 1秒あたり 1回の強力な整合性のある読み込み、あるいは 1秒あたり 2回の結果整合性のある読み込みを表します。
 
- 2. WriteCapacityUnits（書き込みキャパシティーユニット）
+#### 2. WriteCapacityUnits（書き込みキャパシティーユニット）
 
   1WCUは、最大サイズが 1 KB の項目について、1 秒あたり 1 回の書き込みを表します。
 
@@ -51,13 +52,13 @@
  プライマリーキー以外の属性に対して、高速なアクセスを実現したい場合に、インデックスを仕様。
  インデックスの種類は2種類存在。
 
- 1. GlobalSecondaryIndex
+#### 1. GlobalSecondaryIndex
 
   ベーステーブルと異なるパーティションキーとソートキーを持つ。
   すべてのパーティションにアクセスするという意味で、「グローバル」
   ベーステーブルとは別に独自のパーティション領域に保存される。
 
- 2. LocalSecondaryIndex
+#### 2. LocalSecondaryIndex
 
   ベーステーブルと同じパーテイションキー、別のソートキーを持つ。
   同じパーティションキーをもつパーティションにのみアクセスするという意味で「ローカル」
@@ -74,33 +75,32 @@
 https://docs.aws.amazon.com/ja_jp/amazondynamodb/latest/developerguide/SecondaryIndexes.html
 
 
-## 項目操作API
+### 例
 
- 読み込み
- | Operation | 概要 | その他 |
- | ----- | ----- | ----- |
- | GetItem | 主キーで1項目取得 | |
- | BatchGetItem | 1つ以上のテーブルから指定したキーの項目を取得 | 1度に100項目まで取得可能 |
- | Query | 指定したパーティションキーの項目全て取得。<br>ソートキーに対しての条件で検索も可能 | 使い方によっては、BatchGetItemよりRCUを節約できるかも |
- | Scan | 全ての項目を取得 | |
-
- 書き込み
- | Operation | 概要 | その他 |
- | ----- | ----- | ----- |
- | PutItem | 項目の作成 | |
- | BatchWriteItem | 1つのテーブルに複数項目を一度に作成 | 1度に25項目まで取得可能<br>BatchGetItemと違い1テーブル<br>削除も可能 |
- | UpdateItem | 主キーを指定して、Attributeを修正 | |
- | DeleteItem | 主キーで項目削除 | |
-
-#### 例
-
-0. テーブル作成（String型のパーティションキーArtists、String型のソートキーSongTitleが主キーのテーブルを作成）
+#### 0. ローカルのDynamoDBの準備
 
 ```
-DYNAMODB_ENDPOINT_URL=http://localhost:18080
-docker-compose up -d
+cat - << EOS > docker-compose.yml
+version: '3'
+services:
+  dynamodb:
+    container_name: example-dynamodb
+    image: amazon/dynamodb-local
+    command: -jar DynamoDBLocal.jar -dbPath /home/dynamodblocal/data
+    volumes:
+      - ./data/dynamodb:/home/dynamodblocal/data
+    ports:
+      - 18080:8000
+EOS
 
-aws dynamodb --endpoint-url=${DYNAMODB_ENDOPOINT_URL} create-table \
+docker-compose up -d
+DYNAMODB_ENDPOINT_URL=http://localhost:18080
+```
+
+#### 1. テーブル作成（String型のパーティションキーArtists、String型のソートキーSongTitleが主キーのテーブルを作成）
+
+```
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} create-table \
   --table-name Music \
   --attribute-definitions \
       AttributeName=Artist,AttributeType=S \
@@ -110,12 +110,47 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDOPOINT_URL} create-table \
         AttributeName=SongTitle,KeyType=RANGE \
   --provisioned-throughput \
         ReadCapacityUnits=10,WriteCapacityUnits=10
+```
 
-aws dynamodb --endpoint-url=${DYNAMODB_ENDOPOINT_URL} describe-table \
+#### 2. 作成したテーブルの確認
+
+```
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} describe-table \
   --table-name Music
 ```
 
-1. 項目書き込み PutItem, BatchWriteItem
+#### 3. 作成したテーブルにGSIを追加
+
+```
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-table \
+  --table-name Music \
+  --attribute-definitions AttributeName=AlbumTitle,AttributeType=S \
+  --global-secondary-index-updates file://fixtures/global_secondary_index.json
+```
+
+## 項目操作API
+
+### 読み込み
+
+| Operation | 概要 | その他 |
+| ----- | ----- | ----- |
+| GetItem | 主キーで1項目取得 | |
+| BatchGetItem | 1つ以上のテーブルから指定したキーの項目を取得 | 1度に100項目まで取得可能 |
+| Query | 指定したパーティションキーの項目全て取得。<br>ソートキーに対しての条件で検索も可能 | 使い方によっては、BatchGetItemよりRCUを節約できるかも |
+| Scan | 全ての項目を取得 | |
+
+### 書き込み
+
+| Operation | 概要 | その他 |
+| ----- | ----- | ----- |
+| PutItem | 項目の作成 | |
+| BatchWriteItem | 1つのテーブルに複数項目を一度に作成 | 1度に25項目まで取得可能<br>BatchGetItemと違い1テーブル<br>削除も可能 |
+| UpdateItem | 主キーを指定して、Attributeを修正 | |
+| DeleteItem | 主キーで項目削除 | |
+
+#### 例
+
+#### 1. 項目書き込み PutItem, BatchWriteItem
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} put-item \
@@ -129,7 +164,7 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} batch-write-item \
   --return-consumed-capacity INDEXES
 ```
 
-2. 項目更新 UpdateItem
+#### 2. 項目更新 UpdateItem
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-item \
@@ -141,7 +176,7 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-item \
   --return-consumed-capacity INDEXES
 ```
 
-3. 1項目の取得 GetItem
+#### 3. 1項目の取得 GetItem
 
 ```
 ### 結果整合性
@@ -159,7 +194,7 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} get-item \
   --return-consumed-capacity INDEXES
 ```
 
-4. 複数の取得 Query (BatchGetItemは省略
+#### 4. 複数の取得 Query (BatchGetItemは省略
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
@@ -169,4 +204,4 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
   --return-consumed-capacity INDEXES
 ```
 
-5. 項目の削除 DeleteItem(省略)
+#### 5. 項目の削除 DeleteItem(省略)
