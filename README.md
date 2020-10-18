@@ -1,12 +1,46 @@
-# DynamoDB概要
+## DynamoDB概要
+
+Amazon DynamoDBの特徴
+
+### 1. NoSQL
+
+> Key-value およびドキュメントデータモデルのいずれもサポートされています。そのため、DynamoDB では柔軟なスキーマを適用して、任意の時点で任意の数の列を各行に設定することができます。
+
+### 2. フルマネージド型
+
+> 分散データベースの運用とスケーリングに伴う管理作業をまかせることができるため、ハードウェアのプロビジョニング、設定と構成、レプリケーション、ソフトウェアのパッチ適用、クラスタースケーリングなどを自分で行う必要はなくなります。
+
+### 3. 高い可用性と耐久性
+
+> DynamoDB は十分な数のサーバー間でデータとトラフィックを自動的に分散し、一貫した高速なパフォーマンスを維持したまま、スループットとストレージの要件に対応します。すべてのデータは SSD (Solid State Disk) に保存され、1 つの AWS リージョン内の複数のアベイラビリティーゾーン間で自動的にレプリケートすることによって、高い可用性とデータ堅牢性を実現します。
 
 ## 基本構成
 
- - tables       テーブルでデータ管理するよ
- - items        attributesのグループ
- - attirubtes   属性。主キー・インデックス以外はスキーマレス
+基本構成は以下のような感じです。
 
-テーブルに必要な概念
+ - table
+ - items
+ - attirubtes
+
+### Table
+
+> Similar to other database systems, DynamoDB stores data in tables. A table is a collection of data.
+
+> 他のDBと同様に、DynamoDBもテーブルにデータを格納。テーブルは、データのコレクション。
+
+### Item
+
+> Each table contains zero or more items. An item is a group of attributes that is uniquely identifiable among all of the other items. In DynamoDB, there is no limit to the number of items you can store in a table.
+
+> 各テーブルは、0以上の項目を持つ。項目は、すべての項目の中で一意に識別できる属性のグループ。DynamoDBには、保存できる項目の数に制限はない。
+
+### Attribute
+
+> Each item is composed of one or more attributes. An attribute is a fundamental data element, something that does not need to be broken down any further. Attributes in DynamoDB are similar in many ways to fields or columns in other database systems.
+
+> 各項目は、1つ以上の属性で構成。属性は基本的なデータ要素であり、これ以上分解する必要はない。DynamoDBの属性は、他のデータベースシステムの、フィールド・列と似ている。
+
+### その他テーブルに必要な概念
 
  - PrimaryKey（HASH, RANGE）
  - CapacityUnit
@@ -14,25 +48,32 @@
 
 ### PrimaryKey
 
+ 各プライマリキー属性はスカラー値 (単一値のみを保持できる) である必要
  DynamoDBはプライマリーキーは必須。
  プライマリキーはテーブルの各項目を一意に識別するため、テーブル内の 2 つの項目が同じキーを持つことはない。
  プライマリーキーは、以下の2種類をサポート。
 
-#### 1. パーティションキー（HASHキー）
+#### 1. パーティションキーのみ（HASHキー）
 
-  DynamoDBは、パーティションキーの値を内部ハッシュ関数を使用し、保存する物理ストレージを決定。
-  パーティションキーの値は、一意。
+> A simple primary key, composed of one attribute known as the partition key. DynamoDB uses the partition key's value as input to an internal hash function. The output from the hash function determines the partition (physical storage internal to DynamoDB) in which the item will be stored.
+> In a table that has only a partition key, no two items can have the same partition key value.
+
+> パーティションキーと呼ばれる1つの属性で構成される主キー。DynamoDBは、パーティションキー値を入力として内部ハッシュ関数を使用。その出力を利用し、項目が保存されるパーティション（DynamoDB内部の物理ストレージ）を決定。
+> 単一パーティションキーのテーブルは、2つの項目で同じパーティションキー値を持つことできない
 
 #### 2. パーティションキーとソートキーの複合キー（HASH+RANGEキー）
 
-  単一パーティションキーの場合と同様、パーティションキーによって、保存先を決定。
-  すべての項目は、パーティションキーの値毎に、ソートキーの値でソートされた順序によって保存される。
-  同一パーティションキー値を持つ項目が存在。
-　パーティションキーとソートキーの組み合わせで、一意。
+> Referred to as a composite primary key, this type of key is composed of two attributes. The first attribute is the partition key, and the second attribute is the sort key.
+> DynamoDB uses the partition key value as input to an internal hash function. The output from the hash function determines the partition (physical storage internal to DynamoDB) in which the item will be stored. All items with the same partition key value are stored together, in sorted order by sort key value.
+> In a table that has a partition key and a sort key, it's possible for two items to have the same partition key value. However, those two items must have different sort key values.
+
+> 複合主キーと呼ばれるこのキーは、2つの属性で構成。最初の属性は、パーティションキー、2つめはソートキー。
+> ... 同じパーティションキー値を持つすべての項目は、ソートキー値でソートされた順序で格納される。
+> 複合主キーを持つテーブルでは、2つの項目が同じパーティションキーを持つ可能性がある。ただし、その場合ソートキーが異なる必要がある。
 
 ### CapacityUnit
 
- > Amazon DynamoDB でプロビジョニングされたテーブルを新しく作成する場合は、プロビジョンドスループット性能を指定する必要があります。これは、テーブルがサポートできる読み取りおよび書き込みアクティビティの量です。DynamoDB はこの情報を使用して、スループット要件を満たすのに十分なシステムリソースを予約します。
+> Amazon DynamoDB でプロビジョニングされたテーブルを新しく作成する場合は、プロビジョンドスループット性能を指定する必要があります。これは、テーブルがサポートできる読み取りおよび書き込みアクティビティの量です。DynamoDB はこの情報を使用して、スループット要件を満たすのに十分なシステムリソースを予約します。
 
  DynamoDBは、テーブルごとにCapacityUnitの設定が必要。PrimaryKey用のCapacityUnit、GSIがある場合は、そのGSIに対しても設定が必要。
  CapacityUnitは、ReadCapacityUnitsとWriteCapacityUnitsがある。
@@ -63,6 +104,8 @@
   ベーステーブルと同じパーテイションキー、別のソートキーを持つ。
   同じパーティションキーをもつパーティションにのみアクセスするという意味で「ローカル」
 
+#### GSI, LSI の比較
+
 | 特徴 | グローバルセカンダリインデックス |	ローカルセカンダリインデックス |
 | ----- | ----- | -----|
 | キースキーマ	| プライマリキーはシンプル (パーティションキー) または複合 (パーティションキーとソートキー) のいずれかとすることができます。 | 	プライマリキーは複合 (パーティションキーとソートキー) である必要があります。|
@@ -75,31 +118,12 @@
 https://docs.aws.amazon.com/ja_jp/amazondynamodb/latest/developerguide/SecondaryIndexes.html
 
 
-### 例
-
-#### 0. ローカルのDynamoDBの準備
-
-```
-cat - << EOS > docker-compose.yml
-version: '3'
-services:
-  dynamodb:
-    container_name: example-dynamodb
-    image: amazon/dynamodb-local
-    command: -jar DynamoDBLocal.jar -dbPath /home/dynamodblocal/data
-    volumes:
-      - ./data/dynamodb:/home/dynamodblocal/data
-    ports:
-      - 18080:8000
-EOS
-
-docker-compose up -d
-DYNAMODB_ENDPOINT_URL=http://localhost:18080
-```
+### ここまでの例
 
 #### 1. テーブル作成（String型のパーティションキーArtists、String型のソートキーSongTitleが主キーのテーブルを作成）
 
 ```
+DYNAMODB_ENDPOINT_URL=http://localhost:18080
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} create-table \
   --table-name Music \
   --attribute-definitions \
@@ -204,4 +228,7 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
   --return-consumed-capacity INDEXES
 ```
 
-#### 5. 項目の削除 DeleteItem(省略)
+
+## 参考
+
+https://docs.aws.amazon.com/ja_jp/amazondynamodb/latest/developerguide/Introduction.html
