@@ -287,7 +287,6 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
   --limit 1
 ```
 
-
 ## 参考
 
 https://docs.aws.amazon.com/ja_jp/amazondynamodb/latest/developerguide/Introduction.html
