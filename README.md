@@ -152,6 +152,14 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-table \
   --global-secondary-index-updates file://fixtures/global_secondary_index.json
 ```
 
+### 4. サンプルデータ追加
+
+```
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} batch-write-item \
+  --request-items file://fixtures/musics.json \
+  --return-consumed-capacity INDEXES
+```
+
 ## 項目操作API
 
 ### 読み込み
@@ -172,23 +180,35 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-table \
 | UpdateItem | 主キーを指定して、Attributeを修正 | |
 | DeleteItem | 主キーで項目削除 | |
 
-#### 例
+#### 1. 項目書き込み PutItem
 
-#### 1. 項目書き込み PutItem, BatchWriteItem
+> Creates a new item, or replaces an old item with a new item. If an item that has the same primary key as the new item already exists in the specified table, the new item completely replaces the existing item. You can perform a conditional put operation (add a new item if one with the specified primary key doesn't exist), or replace an existing item if it has certain attribute values.
+
+> 新しい項目の作成、もしくはフリ項目の置き換え。新しい項目と同じプライマリーキーが存在する場合は、完全に置き換えされる。条件付きのプット操作を実行でき、項目が存在する場合、指定した属性の更新のみすることも可能
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} put-item \
   --table-name Music \
   --item \
     '{"Artist": {"S": "No One You Know"}, "SongTitle": {"S": "Call Me Today"}, "AlbumTitle": {"S": "Somewhat Famous"}, "Awards": {"N": "1"}}' \
-  --return-consumed-capacity TOTAL
+  --return-consumed-capacity INDEXES
 
-aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} batch-write-item \
-  --request-items file://fixtures/musics.json \
+### 条件付き書き込み
+
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} put-item \
+  --table-name Music \
+  --item \
+    '{"Artist": {"S": "No One You Know"}, "SongTitle": {"S": "Call Me Today"}, "AlbumTitle": {"S": "Somewhat Famous"}, "Awards": {"N": "2"}}' \
+  --condition-expression "Awards = :awards" \
+  --expression-attribute-values '{":awards":{"N": "1"}}' \
   --return-consumed-capacity INDEXES
 ```
 
 #### 2. 項目更新 UpdateItem
+
+> Edits an existing item's attributes, or adds a new item to the table if it does not already exist. You can put, delete, or add attribute values. You can also perform a conditional update on an existing item (insert a new attribute name-value pair if it doesn't exist, or replace an existing name-value pair if it has certain expected attribute values).
+
+> 既存の項目の属性値を変更、もしくはその項目が存在しない場合に追加する。属性値の追加、削除が可能。既存の項目に対して条件付きの更新も可能。（属性のキー・バリューのペアが存在しなければ新たに挿入する、もしくは特定の想定される属性値が存在する場合に既存の属性を更新することが可能
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-item \
@@ -198,9 +218,25 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-item \
   --expression-attribute-names '{"#Y":"Year"}' \
   --expression-attribute-values '{":y":{"N":"2020"}}' \
   --return-consumed-capacity INDEXES
+
+### 条件付き更新（更新されない
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} update-item \
+  --table-name Music \
+  --key '{"Artist": {"S": "Acme Band"}, "SongTitle": {"S": "Happy Day"}}' \
+  --update-expression "SET #Y = :y" \
+  --expression-attribute-names '{"#Y":"Year"}' \
+  --expression-attribute-values '{":y":{"N":"2021"}}' \
+  --condition-expression "attribute_not_exists(#Y)" \
+  --return-consumed-capacity INDEXES
 ```
 
 #### 3. 1項目の取得 GetItem
+
+> The GetItem operation returns a set of attributes for the item with the given primary key. If there is no matching item, GetItem does not return any data and there will be no Item element in the response.
+> GetItem provides an eventually consistent read by default. If your application requires a strongly consistent read, set ConsistentRead to true. Although a strongly consistent read might take more time than an eventually consistent read, it always returns the last updated value.
+
+> GetItemは主キーの属性のセットを取得。もし一致する項目がない場合は、何も消さない。
+> GetItemは、結果整合性読み込みをデフォルトで提供。強い整合性を要求するときはconsistent readをtrueにする。強い整合性は読み込みは結果整合性読み込みよりも時間がかかる可能性があるが、常に最後に更新された値を取得出来る。
 
 ```
 ### 結果整合性
@@ -218,7 +254,15 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} get-item \
   --return-consumed-capacity INDEXES
 ```
 
-#### 4. 複数の取得 Query (BatchGetItemは省略
+#### 4. 複数の取得 Query
+
+> The Query operation finds items based on primary key values. You can query any table or secondary index that has a composite primary key (a partition key and a sort key).
+> Use the KeyConditionExpression parameter to provide a specific value for the partition key. The Query operation will return all of the items from the table or index with that partition key value. You can optionally narrow the scope of the Query operation by specifying a sort key value and a comparison operator in KeyConditionExpression. To further refine the Query results, you can optionally provide a FilterExpression. A FilterExpression determines which items within the results should be returned to you. All of the other results are discarded.
+> Queries that do not return results consume the minimum number of read capacity units for that type of read operation.
+
+> クエリはプライマリーキーの値によって項目を検索。クエリは複合主キーを持つテーブル、セカンダリインデックスに対して使用可能。
+> KeyConditionExpressionパラメータを使用し、パーティションキーに特定の値を指定。クエリは、そのパーティションキー値を持つすべての項目を取得。ソートキー値を使用し、クエリのスコープを狭めることも可能。さらにFilterExpressionを使用することで、クエリの結果のどの項目を返却するかを決定可能。他のすべての結果は破棄される。
+> 結果を返却しないクエリは、その最小のRCUを消費。
 
 ```
 aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
@@ -226,6 +270,21 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
   --key-condition-expression "Artist = :artist" \
   --expression-attribute-values '{":artist": {"S":"No One You Know"}}' \
   --return-consumed-capacity INDEXES
+
+### FilterExpression
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
+  --table-name Music \
+  --key-condition-expression "Artist = :artist" \
+  --expression-attribute-values '{":artist": {"S":"No One You Know"}, ":album_title": {"S":"Blue Sky Blues"}}' \
+  --filter-expression "AlbumTitle = :album_title"
+
+### FilterExpression * Limit
+aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
+  --table-name Music \
+  --key-condition-expression "Artist = :artist" \
+  --expression-attribute-values '{":artist": {"S":"No One You Know"}, ":album_title": {"S":"Blue Sky Blues"}}' \
+  --filter-expression "AlbumTitle = :album_title" \
+  --limit 1
 ```
 
 
