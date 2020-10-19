@@ -2,6 +2,9 @@
 
 Amazon DynamoDBの特徴
 
+> Amazon DynamoDB は、フルマネージド型の NoSQL データベースサービスで、高速で予測可能なパフォーマンスとシームレスなスケーラビリティを特長としています。DynamoDB を使用すると、分散データベースの運用とスケーリングに伴う管理作業をまかせることができるため、ハードウェアのプロビジョニング、設定と構成、レプリケーション、ソフトウェアのパッチ適用、クラスタースケーリングなどを自分で行う必要はなくなります。また、DynamoDB も保管時の暗号化を提供し、機密データの保護における負担と複雑な作業を解消します。
+> DynamoDB では、任意の量のデータを保存および取得できるデータベーステーブルを作成し、任意のレベルのリクエストトラフィックを処理できます。ダウンタイムやパフォーマンスの低下を発生させずに、テーブルのスループット容量を拡張または縮小できます。AWS マネジメントコンソール を使用して、リソースの利用率とパフォーマンスメトリクスをモニタリングできます。
+
 ### 1. NoSQL
 
 > Key-value およびドキュメントデータモデルのいずれもサポートされています。そのため、DynamoDB では柔軟なスキーマを適用して、任意の時点で任意の数の列を各行に設定することができます。
@@ -290,3 +293,4 @@ aws dynamodb --endpoint-url=${DYNAMODB_ENDPOINT_URL} query \
 ## 参考
 
 https://docs.aws.amazon.com/ja_jp/amazondynamodb/latest/developerguide/Introduction.html
+https://aws.amazon.com/jp/dynamodb/features/
